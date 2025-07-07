@@ -9,7 +9,7 @@ const Dashboard = () => {
   const [stockData, setStockData] = useState([]);
 
   useEffect(() => {
-    axios.get("http://localhost:3002/api/contact/getaddproduct")
+    axios.get("http://localhost:3002/api/contact/getAddProduct")
       .then((res) => {
         const data = res.data;
         const totalStockIn = data.reduce((acc, item) => acc + item.inStock, 0);
@@ -28,7 +28,7 @@ const Dashboard = () => {
   }, []);
 
   return (
-    <Paper sx={{ p: 3, backgroundColor: "#1a1a1a", color: "white" }}>
+    <Paper sx={{ p: 0, backgroundColor: "#1a1a1a", color: "white" }}>
       <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
         Inventory Distribution
       </Typography>

@@ -1,478 +1,260 @@
-import React, { useState } from 'react';
+// src/Pages/AddProduct.jsx
+import React, { useState, useCallback } from "react";
+import { useDropzone } from "react-dropzone";
 import {
   Box,
-  Button,
   TextField,
-  Typography,
-  Paper,
+  Button,
   Grid,
-  Container,
-  ThemeProvider,
-  createTheme,
-  CssBaseline,
-  Divider,
-  Card,
-  CardContent,
   Snackbar,
   Alert,
-} from '@mui/material';
-import { Add, Delete, Create, CloudUpload } from '@mui/icons-material';
-import { useDropzone } from 'react-dropzone';
-import axios from 'axios';
+  Typography,
+  MenuItem,
+  Container,
+  Paper,
+  Select,
+  InputLabel,
+  FormControl,
+  OutlinedInput,
+  Chip,
+} from "@mui/material";
+import axios from "axios";
+import { styled } from "@mui/material/styles";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#ff0000',
-    },
-    background: {
-      default: '#1a1a1a',
-      paper: '#2d2d2d',
-    },
-    text: {
-      primary: '#ffffff',
-      secondary: '#b0b0b0',
-    },
-  },
-  components: {
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            backgroundColor: '#3a3a3a',
-            '& fieldset': {
-              borderColor: '#555',
-            },
-            '&:hover fieldset': {
-              borderColor: '#777',
-            },
-            '&.Mui-focused fieldset': {
-              borderColor: '#ff0000',
-            },
-          },
-          '& .MuiInputLabel-root': {
-            color: '#b0b0b0',
-          },
-          '& .MuiOutlinedInput-input': {
-            color: '#ffffff',
-          },
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        contained: {
-          backgroundColor: '#ff0000',
-          color: '#ffffff',
-          '&:hover': {
-            backgroundColor: '#cc0000',
-          },
-        },
-      },
-    },
-  },
-});
+/* ───────── Styled helpers ───────── */
+const DarkContainer = styled(Container)(({ theme }) => ({
+  backgroundColor: "#1a1a1a",
+  minHeight: "100vh",
+  padding: theme.spacing(3),
+  color: "white",
+}));
 
+const StyledTextField = styled(TextField)(() => ({
+  width: "100%",
+  "& .MuiOutlinedInput-root": {
+    backgroundColor: "#2d2d2d",
+    borderRadius: 8,
+    "& fieldset": { border: "1px solid #555" },
+    "&:hover fieldset": { border: "1px solid #777" },
+    "&.Mui-focused fieldset": { border: "1px solid #999" },
+  },
+  "& .MuiInputBase-input": {
+    color: "#fff",
+    padding: "16px",
+  },
+  "& .MuiInputBase-input::placeholder": {
+    color: "#fff",
+    opacity: 0.7,
+  },
+  "& .MuiInputLabel-root": { color: "#ccc" },
+}));
+
+const StyledSelect = styled(Select)(() => ({
+  width: "100%",
+  backgroundColor: "#2d2d2d",
+  borderRadius: 8,
+  color: "#fff",
+  "& .MuiOutlinedInput-notchedOutline": { border: "1px solid #555" },
+  "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#777" },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#999" },
+}));
+
+const UploadArea = styled(Paper)(({ theme }) => ({
+  backgroundColor: "#2d2d2d",
+  border: "2px dashed #666",
+  borderRadius: 8,
+  padding: theme.spacing(6),
+  textAlign: "center",
+  color: "#999",
+  cursor: "pointer",
+  minHeight: 250,
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  "&:hover": { borderColor: "#888" },
+}));
+
+/* ───────── Constants ───────── */
+const categories   = ["Shoes", "Clothing", "Accessories"];
+const sizesList    = ["XS", "S", "M", "L", "XL", "XXL"];
+const colorsList   = ["Red", "White", "Blue", "Green", "Black", "Yellow"];
+
+const initialState = {
+  productName: "",
+  price: "",
+  productNo: "",
+  inStock: "",
+  category: "",
+  sizes: [],
+  stockQuantity: "",
+  colors: [],
+  description: "",
+  image: "",
+};
+
+/* ───────── Component ───────── */
 const AddProduct = () => {
-  const [formData, setFormData] = useState({
-    productName: '',
-    category: '',
-    price: '',
-    sizes: '',
-    productNo: '',
-    stockQuantity: '',
-    inStock: '',
-    colors: 'Red,White,Blue',
-    description: 'Lorem Ipsum Dolor Sit Amet Consectetur. Morbi Massa Sed Pretium Ultrices. Aliquam Volutpat Viverra Tristique Tellus Fusce Amet. Commodo Porttitor Risus Tellus Ipsum Arcu Mus. Ullamcorper Orci Eget Aliquet Ornare. Dui Tellus Faucibus Sapien Non Non Tempor Massa Mattis.',
-  });
-  const [image, setImage] = useState(null);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'info',
-  });
+  const [form,      setForm]      = useState(initialState);
+  const [preview,   setPreview]   = useState("");
+  const [snackbar,  setSnackbar]  = useState({ open: false, message: "", type: "success" });
+  const [loading,   setLoading]   = useState(false);
 
-  const handleInputChange = (field) => (event) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: event.target.value,
-    }));
-  };
+  const onDrop = useCallback((acceptedFiles) => {
+    if (!acceptedFiles.length) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result;
+      setForm((p) => ({ ...p, image: base64 }));
+      setPreview(base64);
+    };
+    reader.readAsDataURL(acceptedFiles[0]);
+  }, []);
 
-  const onDrop = (acceptedFiles) => {
-    const file = acceptedFiles[0];
-    if (file && file.size <= 5 * 1024 * 1024) {
-      const reader = new FileReader();
-      reader.onload = (e) => setImage(e.target.result);
-      reader.readAsDataURL(file);
-      setSnackbar({
-        open: true,
-        message: 'Image uploaded successfully',
-        severity: 'success',
-      });
-    } else {
-      setSnackbar({
-        open: true,
-        message: 'Image size exceeds 5MB limit',
-        severity: 'error',
-      });
-    }
-  };
-
-  const { getRootProps, getInputProps } = useDropzone({
+  const { getRootProps, getInputProps, open } = useDropzone({
     onDrop,
-    accept: { 'image/*': [] },
-    maxFiles: 1,
+    noClick: true,
+    noKeyboard: true,
+    accept: { "image/*": [] },
   });
+
+  const handleImageAreaClick = () => open();
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+  };
+
+  const handleSelectChange = (field) => (event) => {
+    setForm((p) => ({ ...p, [field]: event.target.value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Validate required fields
-    if (
-      !formData.productName ||
-      !formData.category ||
-      !formData.price ||
-      !formData.sizes ||
-      !formData.productNo ||
-      !formData.stockQuantity ||
-      !formData.inStock ||
-      !formData.colors ||
-      !image
-    ) {
-      setSnackbar({
-        open: true,
-        message: 'Please fill in all required fields, including an image.',
-        severity: 'error',
-      });
-      return;
-    }
-
-    // Validate numeric fields
-    const numericFields = {
-      price: Number(formData.price),
-      productNo: Number(formData.productNo),
-      inStock: Number(formData.inStock),
-      stockQuantity: Number(formData.stockQuantity),
-    };
-
-    if (
-      Object.values(numericFields).some((value) => isNaN(value) || value < 0)
-    ) {
-      setSnackbar({
-        open: true,
-        message: 'Price, Product No, In Stock, and Stock Quantity must be valid positive numbers.',
-        severity: 'error',
-      });
-      return;
-    }
-
-    const product = {
-      ...formData,
-      ...numericFields,
-      image,
-    };
-
     try {
-      const token = localStorage.getItem('token');
-      console.log('Token:', token);
-      console.log('Payload:', product);
-      const res = await axios.post(
-        'http://localhost:3002/api/contact/addproduct',
-        product,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      if (res.status === 200 || res.status === 201) {
-        setSnackbar({
-          open: true,
-          message: 'Product created successfully! Add another?',
-          severity: 'success',
-        });
-        setFormData({
-          productName: '',
-          category: '',
-          price: '',
-          sizes: '',
-          productNo: '',
-          stockQuantity: '',
-          inStock: '',
-          colors: 'Red,White,Blue',
-          description: formData.description,
-        });
-        setImage(null);
-      }
-    } catch (error) {
-      console.error('Failed to create product:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        headers: error.response?.headers,
-      });
-      setSnackbar({
-        open: true,
-        message: error.response?.data?.message || `Failed to create product: ${error.message}`,
-        severity: 'error',
-      });
-    }
-  };
+      setLoading(true);
+      const token = localStorage.getItem("token");
 
-  const handleCloseSnackbar = () => {
-    setSnackbar((prev) => ({ ...prev, open: false }));
+      const sanitizedForm = {
+        ...form,
+        price: Number(form.price),
+        productNo: Number(form.productNo),
+        inStock: Number(form.inStock),
+        stockQuantity: Number(form.stockQuantity),
+      };
+
+      await axios.post("http://localhost:3002/api/contact/AddProduct", sanitizedForm, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+
+      setSnackbar({ open: true, message: "Product added successfully", type: "success" });
+      setForm(initialState);
+      setPreview("");
+    } catch {
+      setSnackbar({ open: true, message: "Failed to create product. Please try again.", type: "error" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: 'white' }}>
+    <DarkContainer maxWidth={false}>
+      <Box component="form" onSubmit={handleSubmit}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+          <Typography variant="h4" fontWeight={300} letterSpacing={2}>
             Add New Product
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={handleSubmit}
-            sx={{
-              backgroundColor: '#ff0000',
-              '&:hover': { backgroundColor: '#cc0000' },
-              textTransform: 'none',
-              px: 3,
-              py: 1,
-            }}
-          >
+          <Button type="submit" variant="contained" size="large" disabled={loading}>
             Add Product
           </Button>
         </Box>
 
-        {/* Product Info Section */}
-        <Paper sx={{ p: 3, backgroundColor: '#2d2d2d', borderRadius: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'white', letterSpacing: '0.1em' }}>
+        <Paper sx={{ backgroundColor: "#2d2d2d", borderRadius: 2, p: 3, mb: 4 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+            <Typography variant="h2" fontWeight={300} letterSpacing={3} color="white">
               PRODUCT INFO
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="contained"
-                startIcon={<Delete />}
-                onClick={() => {
-                  setFormData({
-                    productName: '',
-                    category: '',
-                    price: '',
-                    sizes: '',
-                    productNo: '',
-                    stockQuantity: '',
-                    inStock: '',
-                    colors: 'Red,White,Blue',
-                    description: formData.description,
-                  });
-                  setImage(null);
-                  setSnackbar({
-                    open: true,
-                    message: 'Form cleared',
-                    severity: 'info',
-                  });
-                }}
-                sx={{
-                  backgroundColor: '#ff0000',
-                  '&:hover': { backgroundColor: '#cc0000' },
-                  textTransform: 'none',
-                }}
-              >
-                Delete
-              </Button>
-              <Button
-                variant="contained"
-                startIcon={<Create />}
-                onClick={handleSubmit}
-                sx={{
-                  backgroundColor: '#ff0000',
-                  '&:hover': { backgroundColor: '#cc0000' },
-                  textTransform: 'none',
-                }}
-              >
+            <Box display="flex" gap={2}>
+              <Button variant="contained" color="error" disabled={loading}>Delete</Button>
+              <Button type="button" variant="contained" color="error" onClick={handleSubmit} disabled={loading}>
                 Create
               </Button>
             </Box>
           </Box>
 
-          <form onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
-              {/* First Row */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  placeholder="Product Name"
-                  value={formData.productName}
-                  onChange={handleInputChange('productName')}
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  placeholder="Category"
-                  value={formData.category}
-                  onChange={handleInputChange('category')}
-                  variant="outlined"
-                />
-              </Grid>
+          <Grid container spacing={3} columns={12}>
+            <Grid xs={12} md={6}><StyledTextField placeholder="Product Name" name="productName" value={form.productName} onChange={handleChange} /></Grid>
+            <Grid xs={12} md={6}><StyledTextField placeholder="Category"     name="category"    value={form.category}    onChange={handleChange} /></Grid>
 
-              {/* Second Row */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  placeholder="Price"
-                  value={formData.price}
-                  onChange={handleInputChange('price')}
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  placeholder="Sizes"
-                  value={formData.sizes}
-                  onChange={handleInputChange('sizes')}
-                  variant="outlined"
-                />
-              </Grid>
-
-              {/* Third Row */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  placeholder="Product No"
-                  value={formData.productNo}
-                  onChange={handleInputChange('productNo')}
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  placeholder="Stock Quantity"
-                  value={formData.stockQuantity}
-                  onChange={handleInputChange('stockQuantity')}
-                  variant="outlined"
-                />
-              </Grid>
-
-              {/* Fourth Row */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  placeholder="In Stock"
-                  value={formData.inStock}
-                  onChange={handleInputChange('inStock')}
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  placeholder="Colors : Red,White,Blue"
-                  value={formData.colors}
-                  onChange={handleInputChange('colors')}
-                  variant="outlined"
-                />
-              </Grid>
+            <Grid xs={12} md={6}><StyledTextField placeholder="Price"        name="price"       value={form.price}       onChange={handleChange} /></Grid>
+            <Grid xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel sx={{ color:"#ccc" }}>Sizes</InputLabel>
+                <StyledSelect multiple value={form.sizes} onChange={handleSelectChange("sizes")} input={<OutlinedInput label="Sizes"/>}
+                  renderValue={(selected) => (
+                    <Box sx={{ display:"flex", flexWrap:"wrap", gap:0.5 }}>
+                      {selected.map((v) => (<Chip key={v} label={v}/>))}
+                    </Box>
+                  )}>
+                  {sizesList.map((s) => (<MenuItem key={s} value={s}>{s}</MenuItem>))}
+                </StyledSelect>
+              </FormControl>
             </Grid>
 
-            {/* Image Upload and Description */}
-            <Grid container spacing={3} sx={{ mt: 2 }}>
-              <Grid item xs={12} md={6}>
-                <Card
-                  {...getRootProps()}
-                  sx={{
-                    backgroundColor: '#3a3a3a',
-                    border: '2px dashed #555',
-                    minHeight: 200,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: '#404040',
-                      borderColor: '#777',
-                    },
-                  }}
-                >
-                  <CardContent sx={{ textAlign: 'center' }}>
-                    <input {...getInputProps()} />
-                    {image ? (
-                      <Box>
-                        <img
-                          src={image}
-                          alt="Product preview"
-                          style={{
-                            maxWidth: '100%',
-                            maxHeight: '150px',
-                            objectFit: 'contain',
-                            marginBottom: '8px',
-                          }}
-                        />
-                        <Typography variant="body1" sx={{ color: '#888' }}>
-                          Click or drop to replace image
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <>
-                        <CloudUpload sx={{ fontSize: 48, color: '#888', mb: 2 }} />
-                        <Typography variant="body1" sx={{ color: '#888' }}>
-                          Drag & drop or click to upload main image
-                        </Typography>
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ backgroundColor: '#3a3a3a', p: 2, borderRadius: 1, minHeight: 200 }}>
-                  <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
-                    Description
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={6}
-                    value={formData.description}
-                    onChange={handleInputChange('description')}
-                    variant="outlined"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        '& fieldset': {
-                          border: 'none',
-                        },
-                      },
-                    }}
-                  />
-                </Box>
-              </Grid>
+            <Grid xs={12} md={6}><StyledTextField placeholder="Product No"     name="productNo"     value={form.productNo}     onChange={handleChange} /></Grid>
+            <Grid xs={12} md={6}><StyledTextField placeholder="Stock Quantity" name="stockQuantity" value={form.stockQuantity} onChange={handleChange} /></Grid>
+
+            <Grid xs={12} md={6}><StyledTextField placeholder="In Stock"       name="inStock"       value={form.inStock}       onChange={handleChange} /></Grid>
+            <Grid xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel sx={{ color:"#ccc" }}>Colors</InputLabel>
+                <StyledSelect multiple value={form.colors} onChange={handleSelectChange("colors")} input={<OutlinedInput label="Colors"/>}
+                  renderValue={(selected) => (
+                    <Box sx={{ display:"flex", flexWrap:"wrap", gap:0.5 }}>
+                      {selected.map((v) => (<Chip key={v} label={v}/>))}
+                    </Box>
+                  )}>
+                  {colorsList.map((c) => (<MenuItem key={c} value={c}>{c}</MenuItem>))}
+                </StyledSelect>
+              </FormControl>
             </Grid>
-          </form>
+          </Grid>
         </Paper>
 
-        {/* Snackbar for feedback */}
-        <Snackbar
-          open={snackbar.open}
-          autoHideDuration={6000}
-          onClose={handleCloseSnackbar}
-        >
-          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-      </Container>
-    </ThemeProvider>
+        <Grid container spacing={3} columns={12}>
+          <Grid xs={12} md={6}>
+            <UploadArea {...getRootProps()} onClick={handleImageAreaClick}>
+              <input {...getInputProps()} />
+              {preview ? (
+                <img src={preview} alt="Preview" style={{ maxWidth:"100%", maxHeight:300, borderRadius:8 }} />
+              ) : (
+                <>
+                  <CloudUploadIcon sx={{ fontSize:60, color:"#666", mb:2 }}/>
+                  <Typography>Drag &amp; Drop or click to upload image</Typography>
+                </>
+              )}
+            </UploadArea>
+          </Grid>
+
+          <Grid xs={12} md={6}>
+            <Typography variant="h6" fontWeight={300} mb={2} color="white">
+              Description
+            </Typography>
+            <StyledTextField
+              fullWidth multiline rows={8} placeholder="Description"
+              name="description" value={form.description} onChange={handleChange}
+            />
+          </Grid>
+        </Grid>
+      </Box>
+
+      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open:false })} anchorOrigin={{ vertical:"bottom", horizontal:"center" }}>
+        <Alert severity={snackbar.type} variant="filled" sx={{ width:"100%" }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </DarkContainer>
   );
 };
 

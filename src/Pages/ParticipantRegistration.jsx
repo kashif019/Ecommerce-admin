@@ -1,284 +1,152 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from "react";
 import {
   Box,
-  TextField,
-  Select,
-  MenuItem,
   Button,
-  FormControl,
-  InputLabel,
+  Grid,
+  MenuItem,
+  TextField,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-} from '@mui/material';
-import axios from 'axios';
+  Paper,
+  Snackbar,
+  Alert,
+} from "@mui/material";
+import axios from "axios";
+import ParticipantList from "./ParticipantList"; // ✅ Ensure path is correct
+
+const genders = [
+  { label: "Male", value: 0 },
+  { label: "Female", value: 1 },
+  { label: "Other", value: 2 },
+];
+
+const emptyForm = {
+  fullName: "",
+  gender: 0,
+  bloodGroup: "",
+  licenseNumber: "",
+  dateOfBirth: "",
+  instagramID: "",
+  address: "",
+  email: "",
+  phoneNumber: "",
+};
+
+const textFieldSx = {
+  input: { color: "#000" },
+  "& .MuiInputBase-input::placeholder": { color: "#000", opacity: 0.5 },
+};
 
 const ParticipantRegistration = () => {
-  const [formData, setFormData] = useState({
-    fullName: '',
-    gender: '',
-    bloodGroup: '',
-    licenseNumber: '',
-    dateOfBirth: '',
-    instagramID: '',
-    address: '',
-    email: '',
-    phoneNumber: ''
+  const [formData, setFormData] = useState(emptyForm);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success",
   });
-  const [registrations, setRegistrations] = useState([]);
-  const [editId, setEditId] = useState(null);
-
-  // Fetch all registrations on component mount
-  useEffect(() => {
-    fetchRegistrations();
-  }, []);
-
-  const fetchRegistrations = async () => {
-    try {
-      const response = await axios.get('http://localhost:3002/api/contact/ParticipantRegistration');
-      setRegistrations(response.data);
-    } catch (err) {
-      console.error('Error fetching registrations:', err);
-    }
-  };
+  const [showList, setShowList] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const rawToken = localStorage.getItem("token");
+    const headers =
+      rawToken && rawToken !== "null" && rawToken !== "undefined"
+        ? { Authorization: `Bearer ${rawToken}` }
+        : {};
+
     try {
-      if (editId) {
-        // Update existing registration
-        await axios.put(`http://localhost:3002/api/contact/ParticipantRegistration/${editId}`, formData);
-        setEditId(null);
-      } else {
-        // Create new registration
-        await axios.post('http://localhost:3002/api/contact/ParticipantRegistration', formData);
-      }
-      setFormData({
-        fullName: '',
-        gender: '',
-        bloodGroup: '',
-        licenseNumber: '',
-        dateOfBirth: '',
-        instagramID: '',
-        address: '',
-        email: '',
-        phoneNumber: ''
+      await axios.post(
+        "http://localhost:3002/api/contact/ParticipantRegistration",
+        formData,
+        { headers }
+      );
+      setSnackbar({
+        open: true,
+        message: "Participant registered successfully",
+        severity: "success",
       });
-      fetchRegistrations();
+      setFormData(emptyForm);
     } catch (err) {
-      console.error('Error submitting form:', err);
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.message || "Registration failed",
+        severity: "error",
+      });
     }
   };
 
-  const handleEdit = (id) => {
-    const registrationToEdit = registrations.find(reg => reg._id === id);
-    setFormData(registrationToEdit);
-    setEditId(id);
+  const handleToggleList = () => {
+    setShowList(true);
   };
 
-  const handleDelete = async (id) => {
-    try {
-      await axios.delete(`http://localhost:3002/api/contact/ParticipantRegistration/${id}`);
-      fetchRegistrations();
-    } catch (err) {
-      console.error('Error deleting registration:', err);
-    }
-  };
+  if (showList) {
+    return <ParticipantList />;
+  }
 
   return (
-    <Box sx={{ p: 3, bgcolor: '#121212', color: '#fff', minHeight: '100vh' }}>
-      <Typography variant="h4" gutterBottom>
-        Participant Registration
-      </Typography>
-      <form onSubmit={handleSubmit}>
-        <TextField
-          fullWidth
-          label="Full Name"
-          name="fullName"
-          value={formData.fullName}
-          onChange={handleChange}
-          variant="outlined"
-          margin="normal"
-          sx={{ bgcolor: '#1e1e1e', color: '#fff' }}
-          InputLabelProps={{ style: { color: '#fff' } }}
-          InputProps={{ style: { color: '#fff' } }}
-        />
-        <FormControl fullWidth variant="outlined" margin="normal" sx={{ bgcolor: '#1e1e1e' }}>
-          <InputLabel sx={{ color: '#fff' }}>Gender</InputLabel>
-          <Select
-            name="gender"
-            value={formData.gender}
-            onChange={handleChange}
-            label="Gender"
-            sx={{ color: '#fff' }}
-          >
-            <MenuItem value="">Select Gender</MenuItem>
-            <MenuItem value="0">Male</MenuItem>
-            <MenuItem value="1">Female</MenuItem>
-            <MenuItem value="2">Other</MenuItem>
-          </Select>
-        </FormControl>
-        <TextField
-          fullWidth
-          label="Blood Group"
-          name="bloodGroup"
-          value={formData.bloodGroup}
-          onChange={handleChange}
-          variant="outlined"
-          margin="normal"
-          sx={{ bgcolor: '#1e1e1e', color: '#fff' }}
-          InputLabelProps={{ style: { color: '#fff' } }}
-          InputProps={{ style: { color: '#fff' } }}
-        />
-        <TextField
-          fullWidth
-          label="License Number"
-          name="licenseNumber"
-          value={formData.licenseNumber}
-          onChange={handleChange}
-          variant="outlined"
-          margin="normal"
-          sx={{ bgcolor: '#1e1e1e', color: '#fff' }}
-          InputLabelProps={{ style: { color: '#fff' } }}
-          InputProps={{ style: { color: '#fff' } }}
-        />
-        <TextField
-          fullWidth
-          label="Date of Birth"
-          name="dateOfBirth"
-          type="date"
-          value={formData.dateOfBirth}
-          onChange={handleChange}
-          variant="outlined"
-          margin="normal"
-          sx={{ bgcolor: '#1e1e1e', color: '#fff' }}
-          InputLabelProps={{ style: { color: '#fff' } }}
-          InputProps={{ style: { color: '#fff' } }}
-        />
-        <TextField
-          fullWidth
-          label="Instagram ID"
-          name="instagramID"
-          value={formData.instagramID}
-          onChange={handleChange}
-          variant="outlined"
-          margin="normal"
-          sx={{ bgcolor: '#1e1e1e', color: '#fff' }}
-          InputLabelProps={{ style: { color: '#fff' } }}
-          InputProps={{ style: { color: '#fff' } }}
-        />
-        <TextField
-          fullWidth
-          label="Address"
-          name="address"
-          value={formData.address}
-          onChange={handleChange}
-          variant="outlined"
-          margin="normal"
-          sx={{ bgcolor: '#1e1e1e', color: '#fff' }}
-          InputLabelProps={{ style: { color: '#fff' } }}
-          InputProps={{ style: { color: '#fff' } }}
-        />
-        <TextField
-          fullWidth
-          label="Email"
-          name="email"
-          type="email"
-          value={formData.email}
-          onChange={handleChange}
-          variant="outlined"
-          margin="normal"
-          sx={{ bgcolor: '#1e1e1e', color: '#fff' }}
-          InputLabelProps={{ style: { color: '#fff' } }}
-          InputProps={{ style: { color: '#fff' } }}
-        />
-        <TextField
-          fullWidth
-          label="Phone Number"
-          name="phoneNumber"
-          value={formData.phoneNumber}
-          onChange={handleChange}
-          variant="outlined"
-          margin="normal"
-          sx={{ bgcolor: '#1e1e1e', color: '#fff' }}
-          InputLabelProps={{ style: { color: '#fff' } }}
-          InputProps={{ style: { color: '#fff' } }}
-        />
-        <Box sx={{ mt: 2 }}>
-          <Button type="submit" variant="contained" color="primary">
-            {editId ? 'Update' : 'Submit'}
-          </Button>
-          <Button
-            type="button"
-            variant="contained"
-            color="secondary"
-            sx={{ ml: 2 }}
-            onClick={() => {
-              setFormData({
-                fullName: '',
-                gender: '',
-                bloodGroup: '',
-                licenseNumber: '',
-                dateOfBirth: '',
-                instagramID: '',
-                address: '',
-                email: '',
-                phoneNumber: ''
-              });
-              setEditId(null);
-            }}
-          >
-            Reset
-          </Button>
-        </Box>
-      </form>
+    <Box sx={{ p: 3 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
+        <Typography variant="h5" sx={{ mb: 3 }}>
+          Participant Registration
+        </Typography>
 
-      {/* Display Registrations Table */}
-      <Typography variant="h5" sx={{ mt: 4 }}>Registered Participants</Typography>
-      <Table sx={{ mt: 2, color: '#fff' }}>
-        <TableHead>
-          <TableRow>
-            <TableCell sx={{ color: '#fff' }}>Full Name</TableCell>
-            <TableCell sx={{ color: '#fff' }}>Gender</TableCell>
-            <TableCell sx={{ color: '#fff' }}>Actions</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {registrations.map((reg) => (
-            <TableRow key={reg._id}>
-              <TableCell sx={{ color: '#fff' }}>{reg.fullName}</TableCell>
-              <TableCell sx={{ color: '#fff' }}>
-                {reg.gender === 0 ? 'Male' : reg.gender === 1 ? 'Female' : 'Other'}
-              </TableCell>
-              <TableCell sx={{ color: '#fff' }}>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  sx={{ mr: 1 }}
-                  onClick={() => handleEdit(reg._id)}
-                >
-                  Edit
-                </Button>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={() => handleDelete(reg._id)}
-                >
-                  Delete
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={2} columns={12}>
+            <Grid xs={12} md={6}>
+              <TextField fullWidth label="Full Name" name="fullName" value={formData.fullName} onChange={handleChange} required sx={textFieldSx} />
+            </Grid>
+            <Grid xs={12} md={6}>
+              <TextField select fullWidth label="Gender" name="gender" value={formData.gender} onChange={handleChange} sx={textFieldSx}>
+                {genders.map((g) => (
+                  <MenuItem key={g.value} value={g.value}>{g.label}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid xs={12} md={6}>
+              <TextField fullWidth label="Blood Group" name="bloodGroup" value={formData.bloodGroup} onChange={handleChange} required sx={textFieldSx} />
+            </Grid>
+            <Grid xs={12} md={6}>
+              <TextField fullWidth label="License Number" name="licenseNumber" value={formData.licenseNumber} onChange={handleChange} required sx={textFieldSx} />
+            </Grid>
+            <Grid xs={12} md={6}>
+              <TextField type="date" fullWidth label="Date of Birth" name="dateOfBirth" value={formData.dateOfBirth} onChange={handleChange} InputLabelProps={{ shrink: true }} required sx={textFieldSx} />
+            </Grid>
+            <Grid xs={12} md={6}>
+              <TextField fullWidth label="Instagram ID" name="instagramID" value={formData.instagramID} onChange={handleChange} sx={textFieldSx} />
+            </Grid>
+            <Grid xs={12}>
+              <TextField fullWidth label="Address" name="address" value={formData.address} onChange={handleChange} required sx={textFieldSx} />
+            </Grid>
+            <Grid xs={12} md={6}>
+              <TextField fullWidth type="email" label="Email" name="email" value={formData.email} onChange={handleChange} required sx={textFieldSx} />
+            </Grid>
+            <Grid xs={12} md={6}>
+              <TextField fullWidth label="Phone Number" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} required sx={textFieldSx} />
+            </Grid>
+          </Grid>
+
+          <Box sx={{ mt: 3 }}>
+            <Button type="submit" variant="contained">
+              Submit
+            </Button>
+            <Button
+              variant="contained"
+              sx={{ ml: 2 }}
+              onClick={handleToggleList}
+            >
+              Show List
+            </Button>
+          </Box>
+        </form>
+      </Paper>
+
+      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+        <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
+      </Snackbar>
     </Box>
   );
 };
