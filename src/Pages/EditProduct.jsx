@@ -1,253 +1,206 @@
-import React, { useState, useEffect } from "react";
-import { useLocation, useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import React, { useEffect, useState } from "react";
 import {
   Box,
-  Typography,
   Button,
-  Card,
-  CardMedia,
+  Typography,
+  Grid,
+  ToggleButton,
+  ToggleButtonGroup,
+  MenuItem,
+  Select,
+  FormControl,
+  IconButton,
   Snackbar,
   Alert,
   TextField,
-  Grid,
-  IconButton,
   useMediaQuery,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
-import { useDropzone } from "react-dropzone";
-import Header from "../Components/Header"; // Existing Header component
-import Sidebar from "../Components/Sidebar"; // Existing Sidebar component
-import ImageCarousel from "../Pages/ImageCarousel"; // Existing ImageCarousel component
+import { styled } from "@mui/material/styles";
+import { useParams, useNavigate } from "react-router-dom";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import Sidebar from "../Components/Sidebar";
+import Header from "../Components/Header";
+import axios from "axios";
+import ImageCarousel from "../Pages/ImageCarousel";
 
 const SIDEBAR_WIDTH = 240;
 const HEADER_HEIGHT = 64;
 
+const DarkContainer = styled(Box)(({ theme }) => ({
+  backgroundColor: "#1a1a1a",
+  minHeight: "100vh",
+  padding: theme.spacing(4),
+  color: "white",
+  display: "flex",
+  gap: theme.spacing(4),
+}));
+
+const ImageBox = styled(Box)(({ theme }) => ({
+  flex: 1,
+  backgroundColor: "#111",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  borderRadius: theme.spacing(1),
+  padding: theme.spacing(2),
+}));
+
+const DetailBox = styled(Box)(({ theme }) => ({
+  flex: 2,
+  backgroundColor: "#111",
+  padding: theme.spacing(4),
+  borderRadius: theme.spacing(1),
+}));
+
+const StyledToggleButton = styled(ToggleButton)(({ theme }) => ({
+  color: "white",
+  border: "1px solid #444",
+  "&.Mui-selected": {
+    backgroundColor: "#333",
+    color: "#ff5252",
+  },
+  "&:hover": {
+    backgroundColor: "#222",
+  },
+}));
+
+const StatBox = styled(Box)(({ theme }) => ({
+  backgroundColor: "#2d2d2d",
+  padding: theme.spacing(2),
+  borderRadius: theme.spacing(1),
+  textAlign: "center",
+  minWidth: 120,
+}));
+
 const EditProduct = () => {
   const { id } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
-  const isMobile = useMediaQuery("(max-width:768px)");
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  const [product, setProduct] = useState(location.state?.product || null);
-  const [formData, setFormData] = useState({
-    productName: "",
-    price: "",
-    productNo: "",
-    category: "",
-    sizes: "",
-    stockQuantity: "",
-    inStock: "",
-    colors: "",
-    description: "",
-    image: "",
-  });
+  const [product, setProduct] = useState(null);
+  const [selectedSize, setSelectedSize] = useState("");
+  const [selectedColor, setSelectedColor] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
     severity: "success",
   });
-
-  const sizes = ["XS", "S", "M", "L", "XL"];
-  const colors = ["Black", "White", "Red", "Violet", "Orange", "Yellow"];
-
-  const handleDrawerToggle = () => {
-    setMobileOpen((prev) => !prev);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/login");
-  };
+  const [productName, setProductName] = useState("");
+  const [image, setImage] = useState("");
+  const isMobile = useMediaQuery("(max-width:768px)");
 
   useEffect(() => {
-    if (!product) {
-      axios
-        .get(`http://localhost:3002/api/contact/getaddproduct/${id}`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        })
-        .then((res) => setProduct(res.data))
-        .catch((err) => {
-          console.error("Error fetching product:", err.response?.data || err);
-          setSnackbar({
-            open: true,
-            message: "Failed to fetch product",
-            severity: "error",
-          });
+    const fetchProduct = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(
+          `http://localhost:3002/api/contact/AddProduct/${id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        setProduct(res.data);
+        setProductName(res.data.productName);
+        setImage(res.data.image);
+        setSelectedSize(res.data.sizes?.[0] || "");
+        setSelectedColor(res.data.colors?.[0] || "");
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: "Failed to fetch product",
+          severity: "error",
         });
-    }
-  }, [id, product]);
-
-  useEffect(() => {
-    if (product) {
-      setFormData({
-        productName: product.productName || "",
-        price: product.price?.toString() || "",
-        productNo: product.productNo?.toString() || "",
-        category: product.category || "",
-        sizes: product.sizes || sizes[0],
-        stockQuantity: product.stockQuantity?.toString() || "",
-        inStock: product.inStock?.toString() || "",
-        colors: product.colors || colors[0],
-        description: product.description || "",
-        image: product.image || "",
-      });
-    }
-  }, [product]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const onDrop = (acceptedFiles) => {
-    const file = acceptedFiles[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFormData((prev) => ({ ...prev, image: e.target.result }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const { getRootProps, getInputProps } = useDropzone({
-    onDrop,
-    accept: "image/*",
-  });
-
-  const handleSubmit = async () => {
-    if (
-      !formData.productName ||
-      !formData.price ||
-      !formData.inStock ||
-      !formData.category ||
-      !formData.sizes ||
-      !formData.stockQuantity ||
-      !formData.colors ||
-      !formData.image
-    ) {
-      setSnackbar({
-        open: true,
-        message: "Please fill in all required fields.",
-        severity: "error",
-      });
-      return;
-    }
-
-    const updated = {
-      productName: formData.productName,
-      price: Number(formData.price),
-      productNo: formData.productNo ? Number(formData.productNo) : undefined,
-      category: formData.category,
-      sizes: formData.sizes,
-      stockQuantity: Number(formData.stockQuantity),
-      inStock: Number(formData.inStock),
-      colors: formData.colors,
-      description: formData.description,
-      image: formData.image,
+        console.error("Failed to fetch product", error);
+      }
     };
+    fetchProduct();
+  }, [id]);
 
+  const handleStockUpdate = async () => {
     try {
-      const res = await axios.put(
-        `http://localhost:3002/api/contact/updateproduct/${id}`,
-        updated,
+      const token = localStorage.getItem("token");
+      for (let i = 0; i < quantity; i++) {
+        await axios.patch(
+          `http://localhost:3002/api/contact/AddProduct/${id}/stock?action=in`,
+          {},
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+      }
+      const res = await axios.get(
+        `http://localhost:3002/api/contact/AddProduct/${id}`,
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
       setProduct(res.data);
+      setSnackbar({
+        open: true,
+        message: "Stock updated successfully",
+        severity: "success",
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Failed to update stock",
+        severity: "error",
+      });
+      console.error("Failed to update stock", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`http://localhost:3002/api/contact/AddProduct/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      navigate("/");
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: "Failed to delete product",
+        severity: "error",
+      });
+      console.error("Failed to delete product", error);
+    }
+  };
+
+  const handleUpdate = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.patch(
+        `http://localhost:3002/api/contact/AddProduct/${id}`,
+        { productName, image },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       setSnackbar({
         open: true,
         message: "Product updated successfully",
         severity: "success",
       });
     } catch (error) {
-      console.error("Failed to update product:", error.response?.data || error);
       setSnackbar({
         open: true,
-        message: error.response?.data?.message || "Failed to update product",
+        message: "Failed to update product",
         severity: "error",
       });
+      console.error("Failed to update product", error);
     }
   };
 
-  const handleDelete = async () => {
-    if (window.confirm("Are you sure you want to delete this product?")) {
-      try {
-        await axios.delete(
-          `http://localhost:3002/api/contact/deleteproduct/${id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
-        setSnackbar({
-          open: true,
-          message: "Product deleted",
-          severity: "success",
-        });
-        navigate("/productlist");
-      } catch (error) {
-        console.error(
-          "Failed to delete product:",
-          error.response?.data || error
-        );
-        setSnackbar({
-          open: true,
-          message: error.response?.data?.message || "Failed to delete product",
-          severity: "error",
-        });
-      }
-    }
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
   };
 
-  const handleStockUpdate = async (action) => {
-    try {
-      const res = await axios.patch(
-        `http://localhost:3002/api/contact/updatestock/${id}?action=${action}`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        }
-      );
-      setProduct(res.data);
-      setFormData((prev) => ({
-        ...prev,
-        inStock: res.data.inStock.toString(),
-        stockQuantity: res.data.stockQuantity.toString(),
-      }));
-      setSnackbar({
-        open: true,
-        message: `Stock ${action === "in" ? "increased" : "decreased"}`,
-        severity: "success",
-      });
-    } catch (error) {
-      console.error("Failed to update stock:", error.response?.data || error);
-      setSnackbar({
-        open: true,
-        message: error.response?.data?.message || "Stock update failed",
-        severity: "error",
-      });
-    }
-  };
-
-  if (!product) return <Typography>Loading product...</Typography>;
+  if (!product) return null;
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", overflowX: "hidden" }}>
       <Sidebar
         isMobile={isMobile}
-        mobileOpen={mobileOpen}
-        handleDrawerToggle={handleDrawerToggle}
+        mobileOpen={false}
+        handleDrawerToggle={() => {}}
       />
       <Box
         sx={{
@@ -256,13 +209,12 @@ const EditProduct = () => {
           display: "flex",
           flexDirection: "column",
           overflowX: "hidden",
-          backgroundColor: "#1a1a1a",
         }}
       >
         <Header
+          onLogout={() => {}}
           isMobile={isMobile}
-          handleDrawerToggle={handleDrawerToggle}
-          onLogout={handleLogout}
+          handleDrawerToggle={() => {}}
         />
         <Box
           component="main"
@@ -271,384 +223,173 @@ const EditProduct = () => {
             pt: `${HEADER_HEIGHT + 16}px`,
             px: 3,
             pb: 3,
-            backgroundColor: "#1a1a1a",
+            backgroundColor: "#000",
             color: "#fff",
             minHeight: "100vh",
             overflowX: "hidden",
           }}
         >
-          {/* Image Carousel Section */}
-          <Box
-            sx={{
-              height: 200,
-              backgroundColor: "#2a2a2a",
-              borderRadius: 2,
-              mb: 3,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              position: "relative",
-            }}
-          >
-            <ImageCarousel />
-            <IconButton
-              sx={{
-                position: "absolute",
-                left: 10,
-                color: "#fff",
-                backgroundColor: "rgba(0,0,0,0.5)",
-                "&:hover": { backgroundColor: "rgba(0,0,0,0.7)" },
-              }}
-            >
-              ‹
-            </IconButton>
-            <IconButton
-              sx={{
-                position: "absolute",
-                right: 10,
-                color: "#fff",
-                backgroundColor: "rgba(0,0,0,0.5)",
-                "&:hover": { backgroundColor: "rgba(0,0,0,0.7)" },
-              }}
-            >
-              ›
-            </IconButton>
-          </Box>
+          <ImageCarousel />
+          <DarkContainer>
+            <ImageBox>
+              <img
+                src={product.image}
+                alt={product.productName}
+                style={{ maxWidth: "100%", maxHeight: 350 }}
+              />
+            </ImageBox>
 
-          {/* Product Edit Section */}
-          <Box sx={{ flexGrow: 1, p: 2 }}>
-            <Grid container spacing={3} sx={{ height: "100%" }}>
-              {/* Product Image */}
-              <Grid item xs={12} md={4}>
-                <Card
-                  sx={{
-                    height: 400,
-                    backgroundColor: "#f5f5f5",
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <CardMedia
-                    component="img"
-                    image={formData.image || "https://via.placeholder.com/300"}
-                    alt={formData.productName}
-                    sx={{
-                      objectFit: "contain",
-                      width: "100%",
-                      height: "100%",
-                      maxWidth: 300,
-                      maxHeight: 300,
-                    }}
-                  />
-                </Card>
-                <Box
-                  {...getRootProps()}
-                  sx={{
-                    mt: 2,
-                    height: 60,
-                    backgroundColor: "#333",
-                    borderRadius: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#ccc",
-                    cursor: "pointer",
-                    border: "2px dashed #555",
-                    "&:hover": { backgroundColor: "#444" },
-                  }}
-                >
-                  <input {...getInputProps()} />
-                  <Typography variant="body2">
-                    {formData.image ? "Change image" : "Upload image"}
-                  </Typography>
-                </Box>
-              </Grid>
-
-              {/* Product Details */}
-              <Grid item xs={12} md={5}>
-                <Box sx={{ color: "#fff" }}>
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      fontWeight: "bold",
-                      mb: 3,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {formData.productName || "RIDING HELMET"}
-                  </Typography>
-
-                  {/* Size Selection */}
-                  <Box sx={{ mb: 3 }}>
-                    <Typography
-                      variant="body1"
-                      sx={{ mb: 1, fontWeight: "bold" }}
-                    >
-                      Size
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      {sizes.map((size) => (
-                        <Button
-                          key={size}
-                          variant={
-                            formData.sizes === size ? "contained" : "outlined"
-                          }
-                          onClick={() =>
-                            setFormData((prev) => ({ ...prev, sizes: size }))
-                          }
-                          sx={{
-                            minWidth: 50,
-                            height: 40,
-                            backgroundColor:
-                              formData.sizes === size ? "#555" : "transparent",
-                            color: "#fff",
-                            borderColor: "#555",
-                            borderRadius: 1,
-                            "&:hover": {
-                              backgroundColor: "#555",
-                              borderColor: "#555",
-                            },
-                          }}
-                        >
-                          {size}
-                        </Button>
-                      ))}
-                    </Box>
-                  </Box>
-
-                  {/* Color Selection */}
-                  <Box sx={{ mb: 3 }}>
-                    <Typography
-                      variant="body1"
-                      sx={{ mb: 1, fontWeight: "bold" }}
-                    >
-                      Color
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      {colors.map((color) => (
-                        <Button
-                          key={color}
-                          variant={
-                            formData.colors === color ? "contained" : "outlined"
-                          }
-                          onClick={() =>
-                            setFormData((prev) => ({ ...prev, colors: color }))
-                          }
-                          sx={{
-                            minWidth: 70,
-                            height: 40,
-                            backgroundColor:
-                              formData.colors === color
-                                ? "#555"
-                                : "transparent",
-                            color: "#fff",
-                            borderColor: "#555",
-                            borderRadius: 1,
-                            textTransform: "capitalize",
-                            "&:hover": {
-                              backgroundColor: "#555",
-                              borderColor: "#555",
-                            },
-                          }}
-                        >
-                          {color}
-                        </Button>
-                      ))}
-                    </Box>
-                  </Box>
-
-                  {/* Quantity and Selected Info */}
-                  <Box sx={{ mb: 3 }}>
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 2,
-                        mb: 2,
-                      }}
-                    >
-                      <Typography variant="body1" sx={{ fontWeight: "bold" }}>
-                        Quantity
-                      </Typography>
-                      <TextField
-                        size="small"
-                        value={formData.stockQuantity}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            stockQuantity: e.target.value,
-                          }))
-                        }
-                        sx={{
-                          width: 80,
-                          "& .MuiOutlinedInput-root": {
-                            backgroundColor: "#333",
-                            color: "#fff",
-                            "& fieldset": { borderColor: "#555" },
-                            "&:hover fieldset": { borderColor: "#777" },
-                            "&.Mui-focused fieldset": { borderColor: "#999" },
-                          },
-                        }}
-                      />
-                    </Box>
-                    <Typography variant="body2" sx={{ color: "#ccc", mb: 1 }}>
-                      Selected Size: {formData.sizes}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "#ccc" }}>
-                      Selected Color: {formData.colors}
-                    </Typography>
-                  </Box>
-
-                  {/* Submit Button */}
-                  <Button
-                    variant="contained"
-                    onClick={handleSubmit}
-                    sx={{
-                      backgroundColor: "#ff4444",
-                      color: "#fff",
-                      fontWeight: "bold",
-                      textTransform: "none",
-                      px: 4,
-                      py: 1,
-                      "&:hover": { backgroundColor: "#cc3333" },
-                    }}
-                  >
-                    Submit
-                  </Button>
-                </Box>
-              </Grid>
-
-              {/* Stock Information */}
-              <Grid item xs={12} md={3}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "flex-end",
-                    gap: 2,
-                    color: "#fff",
-                  }}
-                >
+            <DetailBox>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Box display="flex" alignItems="center" gap={2} flex={1}>
                   <IconButton
-                    onClick={handleDelete}
-                    sx={{
-                      backgroundColor: "#ff4444",
-                      color: "#fff",
-                      "&:hover": { backgroundColor: "#cc3333" },
-                    }}
+                    onClick={() =>
+                      navigate("/dashboard/ecommerce", {
+                        state: { showAddProduct: false },
+                      })
+                    }
+                    sx={{ color: "white" }}
                   >
-                    <DeleteIcon />
+                    <ArrowBackIcon />
                   </IconButton>
 
-                  <Box
+                  <TextField
+                    label="Product Name"
+                    value={productName}
+                    onChange={(e) => setProductName(e.target.value)}
+                    variant="outlined"
+                    fullWidth
                     sx={{
-                      backgroundColor: "#2a2a2a",
-                      p: 2,
-                      borderRadius: 2,
-                      textAlign: "center",
-                      minWidth: 120,
+                      backgroundColor: "#2d2d2d",
+                      borderRadius: 1,
+                      input: { color: "white" },
+                      label: { color: "white" },
+                      mb: 2,
                     }}
-                  >
-                    <Typography variant="body2" sx={{ color: "#ccc", mb: 1 }}>
-                      Sale Stocks
-                    </Typography>
-                    <Typography
-                      variant="h4"
-                      sx={{ color: "#fff", fontWeight: "bold" }}
-                    >
-                      {formData.stockQuantity || "200"}
-                    </Typography>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      backgroundColor: "#2a2a2a",
-                      p: 2,
-                      borderRadius: 2,
-                      textAlign: "center",
-                      minWidth: 120,
-                    }}
-                  >
-                    <Typography variant="body2" sx={{ color: "#ccc", mb: 1 }}>
-                      Remain Stock
-                    </Typography>
-                    <Typography
-                      variant="h4"
-                      sx={{ color: "#fff", fontWeight: "bold" }}
-                    >
-                      {formData.inStock || "103"}
-                    </Typography>
-                  </Box>
-
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 1,
-                      width: "100%",
-                    }}
-                  >
-                    <Button
-                      onClick={() => handleStockUpdate("in")}
-                      sx={{
-                        backgroundColor: "#009688",
-                        color: "#fff",
-                        textTransform: "none",
-                        "&:hover": { backgroundColor: "#00796b" },
-                      }}
-                    >
-                      Stock In
-                    </Button>
-                    <Button
-                      onClick={() => handleStockUpdate("out")}
-                      sx={{
-                        backgroundColor: "#f44336",
-                        color: "#fff",
-                        textTransform: "none",
-                        "&:hover": { backgroundColor: "#d32f2f" },
-                      }}
-                    >
-                      Stock Out
-                    </Button>
-                    <Button
-                      onClick={() =>
-                        navigate("/dashboard/ecommerce", {
-                          state: { showAddProduct: false },
-                        })
-                      }
-                      sx={{
-                        backgroundColor: "#555",
-                        color: "#fff",
-                        textTransform: "none",
-                        "&:hover": { backgroundColor: "#666" },
-                      }}
-                    >
-                      Back to Products
-                    </Button>
-                  </Box>
+                  />
                 </Box>
-              </Grid>
-            </Grid>
-          </Box>
+                <IconButton onClick={handleDelete} sx={{ color: "red" }}>
+                  <i className="fas fa-trash" />
+                </IconButton>
+              </Box>
+
+              <TextField
+                label="Image URL"
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+                variant="outlined"
+                fullWidth
+                sx={{
+                  backgroundColor: "#2d2d2d",
+                  borderRadius: 1,
+                  input: { color: "white" },
+                  label: { color: "white" },
+                  mb: 3,
+                }}
+              />
+
+              <Typography fontWeight="bold" mt={2}>
+                Size
+              </Typography>
+              <ToggleButtonGroup
+                value={selectedSize}
+                exclusive
+                onChange={(e, val) => setSelectedSize(val)}
+              >
+                {product.sizes.map((size) => (
+                  <StyledToggleButton key={size} value={size}>
+                    {size}
+                  </StyledToggleButton>
+                ))}
+              </ToggleButtonGroup>
+
+              <Typography fontWeight="bold" mt={2}>
+                Color
+              </Typography>
+              <ToggleButtonGroup
+                value={selectedColor}
+                exclusive
+                onChange={(e, val) => setSelectedColor(val)}
+              >
+                {product.colors.map((color) => (
+                  <StyledToggleButton key={color} value={color}>
+                    {color}
+                  </StyledToggleButton>
+                ))}
+              </ToggleButtonGroup>
+
+              <Box mt={3}>
+                <Typography>Quantity</Typography>
+                <Select
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  sx={{
+                    mt: 1,
+                    backgroundColor: "#2d2d2d",
+                    color: "white",
+                    borderRadius: 1,
+                  }}
+                >
+                  {[...Array(10)].map((_, i) => (
+                    <MenuItem key={i + 1} value={i + 1}>
+                      {i + 1}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Box>
+
+              <Box display="flex" gap={2} mt={4} alignItems="center">
+                <Button
+                  variant="contained"
+                  sx={{ backgroundColor: "#e53e3e" }}
+                  onClick={handleStockUpdate}
+                >
+                  Stock In
+                </Button>
+
+                <Button
+                  variant="contained"
+                  sx={{ backgroundColor: "#4caf50" }}
+                  onClick={handleUpdate}
+                >
+                  Update Details
+                </Button>
+
+                <Box display="flex" gap={2}>
+                  <StatBox>
+                    <Typography variant="body2">Sale Stocks</Typography>
+                    <Typography variant="h6">
+                      {product.stockQuantity - product.inStock}
+                    </Typography>
+                  </StatBox>
+                  <StatBox>
+                    <Typography variant="body2">Remain Stock</Typography>
+                    <Typography variant="h6">{product.inStock}</Typography>
+                  </StatBox>
+                </Box>
+              </Box>
+            </DetailBox>
+
+            <Snackbar
+              open={snackbar.open}
+              autoHideDuration={3000}
+              onClose={handleCloseSnackbar}
+            >
+              <Alert
+                severity={snackbar.severity}
+                onClose={handleCloseSnackbar}
+                sx={{ width: "100%" }}
+              >
+                {snackbar.message}
+              </Alert>
+            </Snackbar>
+          </DarkContainer>
         </Box>
       </Box>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: "100%" }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
